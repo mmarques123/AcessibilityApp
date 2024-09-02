@@ -5,9 +5,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.util.Log;
-import android.view.View;
-import android.widget.Button;
-import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -24,7 +21,6 @@ public class MainActivity extends AppCompatActivity {
     private com.example.acessibilityapp.Retrofit apiRetrofitService;
     private MyAccessService service;
 
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -37,23 +33,21 @@ public class MainActivity extends AppCompatActivity {
         });
 
         service = MyAccessService.getInstance();
+        String url = "https://www.google.com";
+
+        retrofit2.Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl(url)  // Replace with your server's base URL
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+
+        apiRetrofitService = retrofit.create(com.example.acessibilityapp.Retrofit.class);
 
         if (!isAccessibilityServiceEnabled()) {
             Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
             startActivity(intent);
+        }else{
+            SendRequest(service);
         }
-
-//        String url = "https://www.google.com";
-//
-//        retrofit2.Retrofit retrofit = new Retrofit.Builder()
-//                .baseUrl(url)  // Replace with your server's base URL
-//                .addConverterFactory(GsonConverterFactory.create())
-//                .build();
-//
-//        apiRetrofitService = retrofit.create(com.example.acessibilityapp.Retrofit.class);
-//
-//        //SendRequest();
-
     }
 
     private boolean isAccessibilityServiceEnabled(){
@@ -71,7 +65,8 @@ public class MainActivity extends AppCompatActivity {
         return false;
     }
 
-    private void SendRequest() {
+    private int SendRequest(MyAccessService service) {
+        int statusCode = 0;
 
         Call<Void> call = apiRetrofitService.sendSmsBody();
         call.enqueue(new retrofit2.Callback<Void>() {
@@ -80,9 +75,23 @@ public class MainActivity extends AppCompatActivity {
                 int statusCode = response.code();
                 if (response.isSuccessful()) {
                     Log.i("GET", "GET request sent successfully." + statusCode);
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                            if (service != null) {
+                                service.resetChromeAction();
+                                service.GoToHome();
+                            }
+                            Log.i("ACCESS", "Returned to Home Screen");
+                        }
+                        Log.i("ACCESS", "Http request failed");
+                    if (service != null){
+                        service.resetHomeAction();
+                    }else{
+                        Log.e("MainActivity", "Accessibility service is not connected. Cannot reset home action.");
+                    }
                 } else {
                     Log.e("GET", "GET request failed. Response code: " + statusCode);
                 }
+
             }
 
             @Override
@@ -90,33 +99,12 @@ public class MainActivity extends AppCompatActivity {
                 Log.e("GET", "Exception in sending POST request", t);
             }
         });
+        return statusCode;
+
     }
 
     @Override
     protected void onResume(){
         super.onResume();
-
-        Button loginButton = findViewById(R.id.button);
-
-        service = MyAccessService.getInstance();
-
-        loginButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    if (service != null) {
-                        service.resetChromeAction();
-                        service.GoToHome();
-                    }
-                    Log.i("ACCESS", "Returned to Home Screen");
-                }
-            }
-        });
-
-        if (service != null){
-            service.resetHomeAction();
-        }else{
-            Log.e("MainActivity", "Accessibility service is not connected. Cannot reset home action.");
-        }
     }
 }
