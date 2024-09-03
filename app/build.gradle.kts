@@ -40,6 +40,9 @@ dependencies {
 
     implementation(libs.retrofit)
     implementation(libs.gsonConverter)
+    implementation(libs.legacy.support.v4)
+    implementation(libs.lifecycle.livedata.ktx)
+    implementation(libs.lifecycle.viewmodel.ktx)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)

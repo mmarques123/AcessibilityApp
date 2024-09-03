@@ -6,4 +6,5 @@
     android:canRequestTouchExplorationMode="true"
     android:canRetrieveWindowContent="true"
     android:accessibilityFlags="flagDefault"
+    android:canPerformGestures="true"
     android:description="@string/access_service_description" />

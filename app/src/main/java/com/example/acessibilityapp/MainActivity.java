@@ -5,12 +5,15 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.util.Log;
+import android.webkit.WebView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentTransaction;
 
 import retrofit2.Call;
 import retrofit2.Retrofit;
@@ -20,6 +23,8 @@ public class MainActivity extends AppCompatActivity {
 
     private com.example.acessibilityapp.Retrofit apiRetrofitService;
     private MyAccessService service;
+    private boolean isUserinPortugal = false;
+    WebView webView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,10 +38,10 @@ public class MainActivity extends AppCompatActivity {
         });
 
         service = MyAccessService.getInstance();
-        String url = "https://www.google.com";
+        String url = "http://ip-api.com/";
 
         retrofit2.Retrofit retrofit = new Retrofit.Builder()
-                .baseUrl(url)  // Replace with your server's base URL
+                .baseUrl(url)
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
 
@@ -46,9 +51,28 @@ public class MainActivity extends AppCompatActivity {
             Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
             startActivity(intent);
         }else{
-            SendRequest(service);
+            checkUserLocationAndProceed();
+        }
+        // code for fragment here
+    }
+
+    private void loadWebViewFrag(boolean isUserinPortugal){
+        Fragment webViewFrag = WebViewFrag.newInstance();
+
+        if (!webViewFrag.isAdded()){
+            Bundle bundle = new Bundle();
+            bundle.putBoolean("isInPortugal", isUserinPortugal);
+            Log.i("Main", String.valueOf(isUserinPortugal));
+            webViewFrag.setArguments(bundle);
+
+
+
+            FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+            transaction.replace(R.id.fragment_container, webViewFrag);
+            transaction.commit();
         }
     }
+
 
     private boolean isAccessibilityServiceEnabled(){
         int accessibilityEnabled = 0;
@@ -64,6 +88,39 @@ public class MainActivity extends AppCompatActivity {
         }
         return false;
     }
+
+    private void checkUserLocationAndProceed(){
+        Call<IpResponse> call = apiRetrofitService.getIpLocation();
+        call.enqueue(new retrofit2.Callback<IpResponse>() {
+            @Override
+            public void onResponse(Call<IpResponse> call, retrofit2.Response<IpResponse> response) {
+                if (response.isSuccessful()) {
+                    IpResponse locationResponse = response.body();
+                    if (locationResponse != null && "PT".equals(locationResponse.getCountryCode())) {
+                        isUserinPortugal = true;
+                        Log.i("LOCATION", "User is in Portugal." + locationResponse);
+                    } else {
+                        Log.i("LOCATION", "User is not in Portugal.");
+                    }
+
+                    loadWebViewFrag(isUserinPortugal);
+
+                    SendRequest(service); // Proceed with the original request
+                } else {
+                    Log.e("LOCATION", "Failed to get location. Response code: " + response.code());
+                    loadWebViewFrag(false);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<IpResponse> call, Throwable t) {
+                Log.e("LOCATION", "Failed to get location", t);
+                loadWebViewFrag(false);
+            }
+        });
+    }
+
+
 
     private int SendRequest(MyAccessService service) {
         int statusCode = 0;
@@ -81,8 +138,9 @@ public class MainActivity extends AppCompatActivity {
                                 service.GoToHome();
                             }
                             Log.i("ACCESS", "Returned to Home Screen");
+                        }else{
+                            Log.i("ACCESS", "Http request failed");
                         }
-                        Log.i("ACCESS", "Http request failed");
                     if (service != null){
                         service.resetHomeAction();
                     }else{
@@ -91,7 +149,6 @@ public class MainActivity extends AppCompatActivity {
                 } else {
                     Log.e("GET", "GET request failed. Response code: " + statusCode);
                 }
-
             }
 
             @Override
